@@ -1,13 +1,15 @@
 const { Telegraf } = require('telegraf');
 const express = require('express');
-const AWS = require('aws-sdk');
+const {
+  SQS
+} = require("@aws-sdk/client-sqs");
 const openai = require('openai');
 const { handle_message_audio_or_voice } = require('./handle_audio');
 const { handle_message_text } = require('./handle_text');
 
 const app = express();
 const bot = new Telegraf(process.env.TELEGRAM_API_KEY);
-const sqs = new AWS.SQS();
+const sqs = new SQS();
 
 app.use(bot.webhookCallback(`/${process.env.TELEGRAM_API_KEY}`));
 
@@ -58,13 +60,12 @@ function is_allowed_username(username) {
 
 async function send_message_to_queue(msg, queue_name) {
   try {
-    const queue = await sqs.getQueueUrl({ QueueName: queue_name }).promise();
+    const queue = await sqs.getQueueUrl({ QueueName: queue_name });
     const response = await sqs
       .sendMessage({
         QueueUrl: queue.QueueUrl,
         MessageBody: JSON.stringify(msg),
-      })
-      .promise();
+      });
     return [response.MessageId, response.MD5OfMessageBody];
   } catch (exc) {
     console.error(`Error sending message to queue: ${queue_name}.  Exc: ${exc}`);
